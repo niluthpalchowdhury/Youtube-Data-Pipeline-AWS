@@ -30,7 +30,6 @@ An event-driven, serverless ETL pipeline that collects **YouTube trending-video 
 - [Cost & Performance Notes](#cost--performance-notes)
 - [Known Limitations & Roadmap](#known-limitations--roadmap)
 - [Data Sources](#data-sources)
-- [Acknowledgements](#acknowledgements)
 
 ---
 
@@ -601,9 +600,3 @@ kaggle datasets download -d datasnaek/youtube-new -p data --unzip
 ```
 
 ---
-
-## Acknowledgements
-
-The pipeline design and code are adapted from Darshil Parmar's [YouTube data pipeline project](https://github.com/darshilparmar/youtube-data-piepline-aws-s3-lambda-glue-athena-stepfunction).
-
-**Maintainer:** [Niluthpal Chowdhury](https://github.com/niluthpalchowdhury)
