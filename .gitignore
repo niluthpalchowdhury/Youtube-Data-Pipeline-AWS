@@ -1,0 +1,25 @@
+# Large raw datasets: download from Kaggle (see README › Data Sources)
+data/*.csv
+
+# Legacy architecture image (replaced by docs/architecture.svg)
+YouTube Trending Data Pipeline.png
+
+# Build artifacts (Lambda zips, rendered state machine, etc.)
+build/
+*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets & local config
+.env
+*.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,346 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="920" viewBox="0 0 1500 920" role="img" aria-labelledby="title desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="title">YouTube Trending Data Pipeline on AWS</title>
+  <desc id="desc">EventBridge starts a Step Functions state machine. An ingestion Lambda pulls trending videos and category mappings from the YouTube Data API into the S3 Bronze bucket, and historical Kaggle files can be backfilled into the same bucket. A Glue PySpark job and a reference-data Lambda build the Silver layer as Parquet. A data-quality Lambda checks Silver through Athena; on pass a Glue job builds three Gold tables that are queried with Athena and QuickSight; on fail SNS sends an alert. The Glue Data Catalog registers the tables of every layer.</desc>
+
+  <defs>
+    <style>
+      .title{font-size:26px;font-weight:700;fill:#1F2328}
+      .subtitle{font-size:14.5px;fill:#57606A}
+      .zone{font-size:12px;font-weight:700;letter-spacing:1.4px}
+      .card{fill:#FFFFFF;stroke:#D0D7DE;stroke-width:1}
+      .t{font-size:14.5px;font-weight:700;fill:#1F2328}
+      .s{font-size:12px;fill:#57606A;font-family:SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace}
+      .d{font-size:12.5px;fill:#424A53}
+      .m{font-size:12px;fill:#24292F;font-family:SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace}
+      .muted{font-size:12px;fill:#6E7781}
+      .flow{fill:none;stroke:#424A53;stroke-width:2}
+      .trigger{fill:none;stroke:#E7157B;stroke-width:2;stroke-dasharray:6 4}
+      .catalog{fill:none;stroke:#8C959F;stroke-width:1.6;stroke-dasharray:2 4}
+      .pass{fill:none;stroke:#1A7F37;stroke-width:2}
+      .fail{fill:none;stroke:#CF222E;stroke-width:2;stroke-dasharray:6 4}
+      .badge{fill:#E7157B;stroke:#FFFFFF;stroke-width:2}
+      .badge-n{font-size:12px;font-weight:700;fill:#FFFFFF;text-anchor:middle}
+      .chip{fill:#FDF2F8;stroke:#E7157B;stroke-width:1}
+      .chip-t{font-size:13px;font-weight:600;fill:#1F2328}
+      .lg{font-size:12.5px;fill:#57606A}
+      .g{fill:none;stroke:#FFFFFF;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#1F2328" flood-opacity="0.10"/>
+    </filter>
+
+    <marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#424A53"/></marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#E7157B"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8C959F"/></marker>
+    <marker id="agr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1A7F37"/></marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#CF222E"/></marker>
+
+    <!-- Service icons (32 × 32) -->
+    <symbol id="i-yt" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#FF0000"/><path d="M13 10.5 V21.5 L22.5 16 Z" fill="#FFFFFF"/></symbol>
+    <symbol id="i-kaggle" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#20BEFF"/><text x="16" y="23" font-size="20" font-weight="800" fill="#FFFFFF" text-anchor="middle">k</text></symbol>
+    <symbol id="i-lambda" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#ED7100"/><text x="16" y="23" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle">λ</text></symbol>
+    <symbol id="i-s3" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#7AA116"/><path class="g" d="M8 10 L10.5 23.5 Q16 26.5 21.5 23.5 L24 10"/><ellipse class="g" cx="16" cy="10" rx="8" ry="2.6"/></symbol>
+    <symbol id="i-glue" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#8C4FFF"/><path d="M8 9 H24 L18 17 V24 L14 26 V17 Z" fill="#FFFFFF"/></symbol>
+    <symbol id="i-sfn" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#E7157B"/><path class="g" d="M16 10 L10 22 M16 10 L22 22"/><circle cx="16" cy="9.5" r="3.3" fill="#FFFFFF"/><circle cx="10" cy="22.5" r="3.3" fill="#FFFFFF"/><circle cx="22" cy="22.5" r="3.3" fill="#FFFFFF"/></symbol>
+    <symbol id="i-eb" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#E7157B"/><circle class="g" cx="16" cy="16" r="8.5"/><path class="g" d="M16 11 V16 L19.5 18.5"/></symbol>
+    <symbol id="i-sns" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#E7157B"/><rect class="g" x="8" y="10.5" width="16" height="11.5" rx="1.5"/><path class="g" d="M8.5 11.5 L16 17.5 L23.5 11.5"/></symbol>
+    <symbol id="i-athena" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#8C4FFF"/><circle class="g" cx="14.5" cy="14.5" r="6"/><path class="g" style="stroke-width:2.6" d="M19 19 L24 24"/></symbol>
+    <symbol id="i-qs" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#8C4FFF"/><rect x="9" y="17" width="3.6" height="7" rx="0.8" fill="#FFFFFF"/><rect x="14.2" y="12.5" width="3.6" height="11.5" rx="0.8" fill="#FFFFFF"/><rect x="19.4" y="8.5" width="3.6" height="15.5" rx="0.8" fill="#FFFFFF"/></symbol>
+    <symbol id="i-catalog" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#8C4FFF"/><rect class="g" x="8" y="9" width="16" height="14" rx="1.5"/><path class="g" d="M8 14 H24 M8 18.5 H24 M13.5 14 V23"/></symbol>
+    <symbol id="i-cw" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#E7157B"/><path class="g" d="M7 17 H11.5 L14 10.5 L18 22 L20.5 17 H25"/></symbol>
+    <symbol id="i-iam" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#DD344C"/><rect x="10" y="15" width="12" height="9.5" rx="2" fill="#FFFFFF"/><path class="g" d="M12.5 15 V12.5 A3.5 3.5 0 0 1 19.5 12.5 V15"/></symbol>
+  </defs>
+
+  <!-- Canvas -->
+  <rect x="0.5" y="0.5" width="1499" height="919" rx="18" fill="#FFFFFF" stroke="#D8DEE4"/>
+
+  <!-- Title -->
+  <text class="title" x="40" y="50">YouTube Trending Data Pipeline on AWS</text>
+  <text class="subtitle" x="40" y="76">Serverless medallion lakehouse on Amazon S3 · Lambda · Glue (PySpark) · Athena · orchestrated by Step Functions</text>
+
+  <!-- Legend -->
+  <path class="flow" d="M1030 50 H1060" marker-end="url(#ad)"/>
+  <text class="lg" x="1068" y="54.5">data flow</text>
+  <path class="trigger" d="M1146 50 H1176" marker-end="url(#ap)"/>
+  <text class="lg" x="1184" y="54.5">trigger</text>
+  <path class="catalog" d="M1246 50 H1276" marker-end="url(#ag)"/>
+  <text class="lg" x="1284" y="54.5">catalog</text>
+  <circle cx="1356" cy="50" r="9" fill="#E7157B"/>
+  <text class="badge-n" x="1356" y="54.2" style="font-size:11px">n</text>
+  <text class="lg" x="1372" y="54.5">step order</text>
+
+  <!-- ORCHESTRATION -->
+  <rect x="40" y="96" width="1420" height="110" rx="12" fill="#FDF2F8" stroke="#F4C6DC"/>
+  <text class="zone" x="56" y="117" fill="#B0125F">ORCHESTRATION</text>
+
+  <g transform="translate(60,128)">
+    <rect class="card" width="250" height="64" rx="10" filter="url(#sh)"/>
+    <use href="#i-eb" x="12" y="16" width="32" height="32"/>
+    <text class="t" x="54" y="30">Amazon EventBridge</text>
+    <text class="s" x="54" y="47">rate(6 hours)</text>
+  </g>
+
+  <path class="trigger" d="M310 160 H348" marker-end="url(#ap)"/>
+
+  <g transform="translate(350,128)">
+    <rect class="card" width="1090" height="64" rx="10" filter="url(#sh)"/>
+    <use href="#i-sfn" x="12" y="16" width="32" height="32"/>
+    <text class="t" x="54" y="30">AWS Step Functions</text>
+    <text class="s" x="54" y="47">state machine · yt-data-pipeline</text>
+
+    <rect class="chip" x="310" y="16" width="118" height="32" rx="16"/>
+    <circle cx="327" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="327" y="36.3">1</text>
+    <text class="chip-t" x="343" y="36.5">Ingest</text>
+    <text x="434" y="37.5" font-size="18" fill="#E7157B" text-anchor="middle">›</text>
+
+    <rect class="chip" x="440" y="16" width="118" height="32" rx="16"/>
+    <circle cx="457" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="457" y="36.3">2</text>
+    <text class="chip-t" x="473" y="36.5">Wait 10 s</text>
+    <text x="564" y="37.5" font-size="18" fill="#E7157B" text-anchor="middle">›</text>
+
+    <rect class="chip" x="570" y="16" width="118" height="32" rx="16"/>
+    <circle cx="587" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="587" y="36.3">3</text>
+    <text class="chip-t" x="603" y="36.5">Silver jobs</text>
+    <text x="694" y="37.5" font-size="18" fill="#E7157B" text-anchor="middle">›</text>
+
+    <rect class="chip" x="700" y="16" width="118" height="32" rx="16"/>
+    <circle cx="717" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="717" y="36.3">4</text>
+    <text class="chip-t" x="733" y="36.5">DQ gate</text>
+    <text x="824" y="37.5" font-size="18" fill="#E7157B" text-anchor="middle">›</text>
+
+    <rect class="chip" x="830" y="16" width="118" height="32" rx="16"/>
+    <circle cx="847" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="847" y="36.3">5</text>
+    <text class="chip-t" x="863" y="36.5">Gold job</text>
+    <text x="954" y="37.5" font-size="18" fill="#E7157B" text-anchor="middle">›</text>
+
+    <rect class="chip" x="960" y="16" width="118" height="32" rx="16"/>
+    <circle cx="977" cy="32" r="10" fill="#E7157B"/><text class="badge-n" x="977" y="36.3">6</text>
+    <text class="chip-t" x="993" y="36.5">Notify</text>
+  </g>
+
+  <!-- ZONES -->
+  <rect x="40" y="226" width="240" height="420" rx="12" fill="#F6F8FA" stroke="#D0D7DE"/>
+  <text class="zone" x="56" y="250" fill="#57606A">SOURCES</text>
+
+  <rect x="300" y="226" width="270" height="420" rx="12" fill="#FBF3EA" stroke="#E9C9A3"/>
+  <text class="zone" x="316" y="250" fill="#9A5B13">BRONZE · RAW</text>
+
+  <rect x="590" y="226" width="300" height="420" rx="12" fill="#F0F3F7" stroke="#C5D0DC"/>
+  <text class="zone" x="606" y="250" fill="#4A5A6E">SILVER · CLEANSED</text>
+
+  <rect x="910" y="226" width="230" height="420" rx="12" fill="#EEF7F1" stroke="#B4DDC2"/>
+  <text class="zone" x="926" y="250" fill="#1A7F37">QUALITY GATE</text>
+
+  <rect x="1160" y="226" width="300" height="420" rx="12" fill="#FFF8E1" stroke="#EAD38A"/>
+  <text class="zone" x="1176" y="250" fill="#8A6A00">GOLD · CURATED</text>
+
+  <!-- Sources -->
+  <g transform="translate(52,262)">
+    <rect class="card" width="216" height="104" rx="10" filter="url(#sh)"/>
+    <use href="#i-yt" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">YouTube Data API</text>
+    <text class="s" x="54" y="43">v3 · live pull</text>
+    <text class="d" x="14" y="70">• trending videos (top 50)</text>
+    <text class="d" x="14" y="87">• category ID mappings</text>
+  </g>
+
+  <g transform="translate(52,460)">
+    <rect class="card" width="216" height="104" rx="10" filter="url(#sh)"/>
+    <use href="#i-kaggle" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Kaggle dataset</text>
+    <text class="s" x="54" y="43">historical backfill</text>
+    <text class="d" x="14" y="70">• 10 regions · CSV + JSON</text>
+    <text class="d" x="14" y="87">• uploaded via aws_copy.sh</text>
+  </g>
+
+  <!-- Bronze -->
+  <g transform="translate(312,262)">
+    <rect class="card" width="246" height="104" rx="10" filter="url(#sh)"/>
+    <use href="#i-lambda" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Ingestion Lambda</text>
+    <text class="s" x="54" y="43">youtube_api_integstion</text>
+    <text class="d" x="14" y="70">• 10 regions × top 50 videos</text>
+    <text class="d" x="14" y="87">• raw JSON + run metadata</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">1</text>
+  </g>
+
+  <g transform="translate(312,420)">
+    <rect class="card" width="246" height="210" rx="10" filter="url(#sh)"/>
+    <use href="#i-s3" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">S3 · Bronze bucket</text>
+    <text class="s" x="54" y="43">raw · as ingested</text>
+    <text class="m" x="14" y="72">youtube/raw_statistics/</text>
+    <text class="m" x="28" y="89">region=/date=/hour=/</text>
+    <text class="m" x="42" y="106">&lt;run_id&gt;.json</text>
+    <text class="m" x="28" y="123">region=/*.csv <tspan class="muted">(Kaggle)</tspan></text>
+    <text class="m" x="14" y="150">youtube/raw_statistics_</text>
+    <text class="m" x="28" y="167">reference_data/region=/</text>
+    <text class="m" x="42" y="184">*_category_id.json</text>
+  </g>
+
+  <!-- Silver -->
+  <g transform="translate(602,262)">
+    <rect class="card" width="276" height="104" rx="10" filter="url(#sh)"/>
+    <use href="#i-glue" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Glue ETL job (PySpark)</text>
+    <text class="s" x="54" y="43">bronze_to_silver_statistics</text>
+    <text class="d" x="14" y="70">• schema enforce · cast · clean</text>
+    <text class="d" x="14" y="87">• dedup · like &amp; engagement %</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">3</text>
+  </g>
+
+  <g transform="translate(602,382)">
+    <rect class="card" width="216" height="86" rx="10" filter="url(#sh)"/>
+    <use href="#i-lambda" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Reference Lambda</text>
+    <text class="s" x="54" y="43">json_to_parquet</text>
+    <text class="d" x="14" y="70">• JSON → Parquet (pandas)</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">3</text>
+  </g>
+
+  <g transform="translate(602,500)">
+    <rect class="card" width="276" height="130" rx="10" filter="url(#sh)"/>
+    <use href="#i-s3" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">S3 · Silver bucket</text>
+    <text class="s" x="54" y="43">Parquet · by region</text>
+    <text class="m" x="14" y="72">clean_statistics</text>
+    <text class="m" x="14" y="89">clean_reference_data</text>
+    <text class="d" x="14" y="112">Snappy-compressed · cataloged</text>
+  </g>
+
+  <!-- Quality gate -->
+  <g transform="translate(922,262)">
+    <rect class="card" width="206" height="168" rx="10" filter="url(#sh)"/>
+    <use href="#i-lambda" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">DQ Lambda</text>
+    <text class="s" x="54" y="43">dq_lambda · Athena</text>
+    <text class="d" x="14" y="72"><tspan fill="#1A7F37" font-weight="700">✓</tspan> row count ≥ 10</text>
+    <text class="d" x="14" y="89"><tspan fill="#1A7F37" font-weight="700">✓</tspan> nulls ≤ 5 % (key cols)</text>
+    <text class="d" x="14" y="106"><tspan fill="#1A7F37" font-weight="700">✓</tspan> required columns</text>
+    <text class="d" x="14" y="123"><tspan fill="#1A7F37" font-weight="700">✓</tspan> views in valid range</text>
+    <text class="d" x="14" y="140"><tspan fill="#1A7F37" font-weight="700">✓</tspan> freshness &lt; 48 h</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">4</text>
+  </g>
+
+  <polygon points="1025,478 1069,520 1025,562 981,520" fill="#FFFFFF" stroke="#1A7F37" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="1025" y="524.5" font-size="13" font-weight="700" fill="#1F2328" text-anchor="middle">pass?</text>
+
+  <!-- Gold -->
+  <g transform="translate(1172,262)">
+    <rect class="card" width="276" height="104" rx="10" filter="url(#sh)"/>
+    <use href="#i-glue" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Glue ETL job (PySpark)</text>
+    <text class="s" x="54" y="43">silver_to_gold_analytics</text>
+    <text class="d" x="14" y="70">• join category names</text>
+    <text class="d" x="14" y="87">• aggregate by region &amp; day</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">5</text>
+  </g>
+
+  <g transform="translate(1172,420)">
+    <rect class="card" width="276" height="210" rx="10" filter="url(#sh)"/>
+    <use href="#i-s3" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">S3 · Gold bucket</text>
+    <text class="s" x="54" y="43">Parquet · by region</text>
+    <text class="m" x="14" y="74">trending_analytics</text>
+    <text class="muted" x="14" y="91">daily KPIs per region</text>
+    <text class="m" x="14" y="119">channel_analytics</text>
+    <text class="muted" x="14" y="136">channel reach &amp; rank</text>
+    <text class="m" x="14" y="164">category_analytics</text>
+    <text class="muted" x="14" y="181">category view share %</text>
+  </g>
+
+  <!-- PLATFORM & SERVING -->
+  <rect x="40" y="666" width="1420" height="230" rx="12" fill="#F6F8FA" stroke="#D0D7DE"/>
+  <text class="zone" x="56" y="690" fill="#57606A">PLATFORM &amp; SERVING</text>
+
+  <g transform="translate(52,704)">
+    <rect class="card" width="216" height="70" rx="10" filter="url(#sh)"/>
+    <use href="#i-iam" x="12" y="19" width="32" height="32"/>
+    <text class="t" x="54" y="33">AWS IAM</text>
+    <text class="s" x="54" y="50">least-privilege roles</text>
+  </g>
+
+  <g transform="translate(52,806)">
+    <rect class="card" width="216" height="70" rx="10" filter="url(#sh)"/>
+    <use href="#i-cw" x="12" y="19" width="32" height="32"/>
+    <text class="t" x="54" y="33">CloudWatch Logs</text>
+    <text class="s" x="54" y="50">Lambda &amp; Glue logs</text>
+  </g>
+
+  <g transform="translate(312,704)">
+    <rect class="card" width="566" height="172" rx="10" filter="url(#sh)"/>
+    <use href="#i-catalog" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">AWS Glue Data Catalog</text>
+    <text class="s" x="54" y="43">metastore for Glue jobs &amp; Athena</text>
+    <circle cx="20" cy="76" r="4.5" fill="#CD7F32"/>
+    <text class="m" x="32" y="80">yt_pipeline_bronze_dev</text>
+    <text class="d" x="226" y="80">raw_statistics <tspan class="muted">(Glue crawler)</tspan></text>
+    <circle cx="20" cy="104" r="4.5" fill="#9AA6B2"/>
+    <text class="m" x="32" y="108">yt_pipeline_silver_dev</text>
+    <text class="d" x="226" y="108">clean_statistics · clean_reference_data</text>
+    <circle cx="20" cy="132" r="4.5" fill="#D4A72C"/>
+    <text class="m" x="32" y="136">yt_pipeline_gold_dev</text>
+    <text class="d" x="226" y="136">trending · channel · category _analytics</text>
+  </g>
+
+  <g transform="translate(922,704)">
+    <rect class="card" width="206" height="172" rx="10" filter="url(#sh)"/>
+    <use href="#i-sns" x="12" y="12" width="32" height="32"/>
+    <text class="t" x="54" y="26">Amazon SNS</text>
+    <text class="s" x="54" y="43">alerts topic</text>
+    <text class="d" x="14" y="76">• run success / failure</text>
+    <text class="d" x="14" y="93">• DQ failure details</text>
+    <text class="d" x="14" y="110">• ingest / transform errors</text>
+    <text class="d" x="14" y="136">→ email subscribers</text>
+    <circle class="badge" cx="0" cy="0" r="11"/><text class="badge-n" x="0" y="4.3">6</text>
+  </g>
+
+  <g transform="translate(1172,704)">
+    <rect class="card" width="276" height="70" rx="10" filter="url(#sh)"/>
+    <use href="#i-athena" x="12" y="19" width="32" height="32"/>
+    <text class="t" x="54" y="33">Amazon Athena</text>
+    <text class="s" x="54" y="50">ad-hoc SQL on Gold</text>
+  </g>
+
+  <g transform="translate(1172,806)">
+    <rect class="card" width="276" height="70" rx="10" filter="url(#sh)"/>
+    <use href="#i-qs" x="12" y="19" width="32" height="32"/>
+    <text class="t" x="54" y="33">Amazon QuickSight</text>
+    <text class="s" x="54" y="50">dashboards · optional</text>
+  </g>
+
+  <!-- CONNECTORS -->
+  <!-- Sources → Bronze -->
+  <path class="flow" d="M268 314 H310" marker-end="url(#ad)"/>
+  <path class="flow" d="M268 512 H310" marker-end="url(#ad)"/>
+  <path class="flow" d="M435 366 V418" marker-end="url(#ad)"/>
+
+  <!-- Bronze → Silver transforms -->
+  <path class="flow" d="M558 525 H580 V314 H600" marker-end="url(#ad)"/>
+  <path class="flow" d="M580 425 H600" marker-end="url(#ad)"/>
+  <circle cx="580" cy="425" r="3.5" fill="#424A53"/>
+
+  <!-- Silver transforms → Silver bucket -->
+  <path class="flow" d="M850 366 V498" marker-end="url(#ad)"/>
+  <path class="flow" d="M710 468 V498" marker-end="url(#ad)"/>
+
+  <!-- Silver → DQ → decision -->
+  <path class="flow" d="M878 565 H900 V346 H920" marker-end="url(#ad)"/>
+  <path class="flow" d="M1025 430 V476" marker-end="url(#ad)"/>
+
+  <!-- Decision → Gold (pass) / SNS (fail) -->
+  <path class="pass" d="M1069 520 H1150 V314 H1170" marker-end="url(#agr)"/>
+  <text x="1080" y="511" font-size="12" font-weight="700" fill="#1A7F37">pass</text>
+  <path class="fail" d="M1025 562 V702" marker-end="url(#ar)"/>
+  <text x="1034" y="604" font-size="12" font-weight="700" fill="#CF222E">fail</text>
+
+  <!-- Gold -->
+  <path class="flow" d="M1310 366 V418" marker-end="url(#ad)"/>
+  <path class="flow" d="M1310 630 V702" marker-end="url(#ad)"/>
+  <path class="flow" d="M1310 774 V804" marker-end="url(#ad)"/>
+
+  <!-- Catalog registration -->
+  <path class="catalog" d="M435 630 V702" marker-end="url(#ag)"/>
+  <path class="catalog" d="M740 630 V702" marker-end="url(#ag)"/>
+</svg>
